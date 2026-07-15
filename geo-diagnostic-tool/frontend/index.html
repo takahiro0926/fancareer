@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GEO診断ツール | AI検索エンジン最適化チェッカー</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <div class="brand">
+        <span class="brand-mark">GEO</span>
+        <span class="brand-text">診断ツール</span>
+      </div>
+      <p class="brand-sub">Google AI Overviews / ChatGPT / Perplexity に引用されるための無料診断</p>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="hero-form">
+      <h1>あなたのページはAIに引用されていますか？</h1>
+      <p class="lead">URLを入力すると、構造・技術・信頼性・内部リンクの4つの観点でGEOスコアを診断します。</p>
+      <form id="analyze-form" class="url-form">
+        <input
+          type="text"
+          id="url-input"
+          name="url"
+          placeholder="https://example.com/article"
+          autocomplete="url"
+          required
+        />
+        <button type="submit" id="submit-btn">診断する</button>
+      </form>
+      <p id="error-message" class="error-message" hidden></p>
+    </section>
+
+    <section id="loading" class="loading" hidden>
+      <div class="spinner"></div>
+      <p>ページを取得・解析しています…</p>
+    </section>
+
+    <section id="result" class="result" hidden>
+      <div class="overall-card">
+        <div class="overall-score">
+          <svg viewBox="0 0 120 120" class="score-ring">
+            <circle cx="60" cy="60" r="52" class="score-ring-bg" />
+            <circle cx="60" cy="60" r="52" class="score-ring-fg" id="score-ring-fg" />
+          </svg>
+          <div class="overall-score-number">
+            <span id="overall-score-value">0</span>
+            <span class="score-unit">/ 100</span>
+          </div>
+        </div>
+        <div class="overall-meta">
+          <p class="overall-label">総合GEOスコア</p>
+          <p id="overall-url" class="overall-url"></p>
+        </div>
+      </div>
+
+      <div id="categories" class="categories"></div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>GEO診断ツール - 生成AI時代のコンテンツ最適化を支援します。</p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
