@@ -129,6 +129,22 @@
   .empty { color: var(--muted); font-size: 13px; text-align: center; padding: 10px 0; }
 
   .msg { text-align: center; font-size: 13px; color: var(--muted); margin-top: 6px; min-height: 16px; }
+
+  .btn-notify {
+    width: 100%;
+    padding: 11px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-top: 8px;
+    background: var(--card2);
+    color: var(--text);
+  }
+  .btn-notify.on { color: var(--accent); }
+
+  .info-card { }
+  .info-title { font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+  .info-body { font-size: 12.5px; color: var(--muted); line-height: 1.7; }
 </style>
 </head>
 <body>
@@ -152,7 +168,17 @@
         <div id="stageDesc" class="stage-desc">食べ終わった時間で「断食スタート」を押してください</div>
       </div>
       <button id="mainBtn" class="btn-main">断食スタート</button>
+      <button id="notifyBtn" class="btn-notify">🔔 通知を有効にする</button>
       <div id="msg" class="msg"></div>
+    </div>
+  </div>
+
+  <div class="card info-card">
+    <div class="info-title">⌚ Apple Watchに通知を出すには</div>
+    <div class="info-body">
+      このアプリからApple Watchへ直接通知を送ることはできません（それには専用アプリが必要）。<br>
+      一番簡単で確実なのは、iPhoneの「ショートカット」アプリで断食開始と同時に16時間タイマーを始めること。iPhoneに届く通知はApple Watchにも自動で表示されます。<br>
+      手順：ショートカットアプリ → 「+」→ アクション「タイマーを開始」→ 16時間0分をセット → ショートカット名を「断食スタート」に。次から断食を始めるときにこれを1タップすればOK。
     </div>
   </div>
 
@@ -242,7 +268,37 @@ const ringPercent = document.getElementById("ringPercent");
 const stageTitle = document.getElementById("stageTitle");
 const stageDesc = document.getElementById("stageDesc");
 const mainBtn = document.getElementById("mainBtn");
+const notifyBtn = document.getElementById("notifyBtn");
 const msgEl = document.getElementById("msg");
+
+function updateNotifyBtn() {
+  if (!("Notification" in window)) {
+    notifyBtn.textContent = "この端末は通知に非対応です";
+    notifyBtn.disabled = true;
+    return;
+  }
+  if (Notification.permission === "granted") {
+    notifyBtn.textContent = "🔔 通知：有効";
+    notifyBtn.classList.add("on");
+  } else if (Notification.permission === "denied") {
+    notifyBtn.textContent = "通知がブロックされています（設定から許可してください）";
+  } else {
+    notifyBtn.textContent = "🔔 通知を有効にする";
+    notifyBtn.classList.remove("on");
+  }
+}
+notifyBtn.addEventListener("click", () => {
+  if ("Notification" in window && Notification.permission === "default") {
+    Notification.requestPermission().then(updateNotifyBtn);
+  }
+});
+
+function fireNotification(title, body) {
+  if ("Notification" in window && Notification.permission === "granted") {
+    new Notification(title, { body });
+  }
+  if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+}
 
 function render() {
   if (data.current) {
@@ -264,6 +320,17 @@ function render() {
     const stage = getStage(elapsedHours);
     stageTitle.textContent = stage.title;
     stageDesc.textContent = stage.desc;
+
+    if (elapsedHours >= 12 && !data.current.notified12) {
+      data.current.notified12 = true;
+      saveData(data);
+      fireNotification("あと少し", "12時間経過。もうすぐ脂肪燃焼モードです");
+    }
+    if (elapsedHours >= GOAL_HOURS && !data.current.notified16) {
+      data.current.notified16 = true;
+      saveData(data);
+      fireNotification("16時間達成！", "目標達成です。このまま続けても、ここで終えてもOK");
+    }
 
     mainBtn.textContent = "断食を終了する";
     mainBtn.classList.add("stop");
@@ -294,15 +361,12 @@ mainBtn.addEventListener("click", () => {
     msgEl.textContent = durationHours >= GOAL_HOURS
       ? "お疲れさま。" + fmtHM(durationHours) + " 達成しました。"
       : fmtHM(durationHours) + " でした。次は16時間を目指そう。";
-    if (Notification && Notification.permission === "granted") {
-      new Notification("断食終了", { body: fmtHM(durationHours) + " お疲れさまでした" });
-    }
   } else {
     data.current = { start: Date.now() };
     saveData(data);
     msgEl.textContent = "スタートしました。16時間後に達成です。";
-    if (window.Notification && Notification.permission === "default") {
-      Notification.requestPermission();
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission().then(updateNotifyBtn);
     }
   }
   render();
@@ -393,6 +457,7 @@ function renderHistory() {
   });
 }
 
+updateNotifyBtn();
 render();
 setInterval(render, 1000);
 </script>
