@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>16時間断食トラッカー</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⏱️</text></svg>">
+<style>
+  :root {
+    --bg: #0f1115;
+    --card: #181b22;
+    --card2: #20242e;
+    --text: #f2f3f5;
+    --muted: #8b91a1;
+    --accent: #5ee6b0;
+    --accent-dim: #2c4a3f;
+    --warn: #f5a623;
+    --danger: #ef5b5b;
+    --ring-track: #262a34;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f4f5f7;
+      --card: #ffffff;
+      --card2: #f0f1f4;
+      --text: #1b1d22;
+      --muted: #6b7280;
+      --accent: #10a672;
+      --accent-dim: #d6f3e6;
+      --warn: #c9790a;
+      --danger: #d64545;
+      --ring-track: #e4e6ea;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    display: flex;
+    justify-content: center;
+    padding: 20px 14px 60px;
+    min-height: 100vh;
+  }
+  .app { width: 100%; max-width: 480px; }
+
+  h1 { font-size: 18px; font-weight: 600; margin: 4px 0 20px; text-align: center; color: var(--muted); letter-spacing: 0.02em; }
+
+  .card {
+    background: var(--card);
+    border-radius: 18px;
+    padding: 20px;
+    margin-bottom: 14px;
+  }
+
+  /* --- Ring --- */
+  .ring-wrap { display: flex; flex-direction: column; align-items: center; padding: 24px 20px 20px; }
+  .ring-svg { width: 240px; height: 240px; }
+  .ring-track { fill: none; stroke: var(--ring-track); stroke-width: 12; }
+  .ring-progress { fill: none; stroke: var(--accent); stroke-width: 12; stroke-linecap: round; transform: rotate(-90deg); transform-origin: 50% 50%; transition: stroke 0.4s; }
+  .ring-progress.over { stroke: var(--warn); }
+  .ring-center { margin-top: -170px; text-align: center; pointer-events: none; }
+  .ring-time { font-size: 34px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  .ring-sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .ring-percent { font-size: 13px; color: var(--accent); margin-top: 2px; font-weight: 600; }
+
+  .stage {
+    margin-top: 14px;
+    text-align: center;
+  }
+  .stage-title { font-size: 15px; font-weight: 700; }
+  .stage-desc { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+  button {
+    font-family: inherit;
+    border: none;
+    cursor: pointer;
+  }
+  .btn-main {
+    width: 100%;
+    padding: 15px;
+    border-radius: 14px;
+    font-size: 16px;
+    font-weight: 700;
+    margin-top: 16px;
+    color: #0b0f0d;
+    background: var(--accent);
+  }
+  .btn-main.stop {
+    background: var(--danger);
+    color: #fff;
+  }
+  .btn-main:active { opacity: 0.8; }
+
+  /* --- streak --- */
+  .streak-row { display: flex; align-items: center; justify-content: space-between; }
+  .streak-num { font-size: 30px; font-weight: 800; }
+  .streak-label { font-size: 12px; color: var(--muted); }
+  .flame { font-size: 22px; }
+
+  .stats-row { display: flex; gap: 10px; margin-top: 14px; }
+  .stat-box { flex: 1; background: var(--card2); border-radius: 12px; padding: 10px; text-align: center; }
+  .stat-box .v { font-size: 18px; font-weight: 700; }
+  .stat-box .l { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* --- calendar --- */
+  .cal-title { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .cal-cell { aspect-ratio: 1; border-radius: 6px; background: var(--card2); position: relative; }
+  .cal-cell.achieved { background: var(--accent); }
+  .cal-cell.tried { background: var(--warn); opacity: 0.6; }
+  .cal-cell.today { outline: 2px solid var(--text); outline-offset: 1px; }
+  .cal-legend { display: flex; gap: 14px; margin-top: 10px; font-size: 11px; color: var(--muted); align-items: center; }
+  .cal-legend span { display: inline-flex; align-items: center; gap: 4px; }
+  .dot { width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
+
+  /* --- history --- */
+  .hist-title { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+  .hist-item { display: flex; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--card2); font-size: 13px; }
+  .hist-item:last-child { border-bottom: none; }
+  .hist-date { color: var(--muted); }
+  .hist-dur { font-weight: 700; }
+  .hist-dur.ok { color: var(--accent); }
+  .hist-dur.ng { color: var(--muted); }
+  .empty { color: var(--muted); font-size: 13px; text-align: center; padding: 10px 0; }
+
+  .msg { text-align: center; font-size: 13px; color: var(--muted); margin-top: 6px; min-height: 16px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>16時間断食トラッカー</h1>
+
+  <div class="card">
+    <div class="ring-wrap">
+      <svg class="ring-svg" viewBox="0 0 200 200">
+        <circle class="ring-track" cx="100" cy="100" r="88"></circle>
+        <circle id="ringProgress" class="ring-progress" cx="100" cy="100" r="88"
+          stroke-dasharray="553" stroke-dashoffset="553"></circle>
+      </svg>
+      <div class="ring-center">
+        <div id="ringTime" class="ring-time">00:00:00</div>
+        <div id="ringSub" class="ring-sub">断食していません</div>
+        <div id="ringPercent" class="ring-percent"></div>
+      </div>
+      <div class="stage">
+        <div id="stageTitle" class="stage-title">準備OK</div>
+        <div id="stageDesc" class="stage-desc">食べ終わった時間で「断食スタート」を押してください</div>
+      </div>
+      <button id="mainBtn" class="btn-main">断食スタート</button>
+      <div id="msg" class="msg"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="streak-row">
+      <div>
+        <div class="streak-num"><span class="flame">🔥</span><span id="streakNum">0</span></div>
+        <div class="streak-label">連続達成中（16時間以上）</div>
+      </div>
+      <div style="text-align:right">
+        <div class="streak-num" id="bestStreak">0</div>
+        <div class="streak-label">最長記録</div>
+      </div>
+    </div>
+    <div class="stats-row">
+      <div class="stat-box"><div class="v" id="statTotal">0</div><div class="l">総回数</div></div>
+      <div class="stat-box"><div class="v" id="statAvg">0h</div><div class="l">平均時間</div></div>
+      <div class="stat-box"><div class="v" id="statRate">0%</div><div class="l">達成率</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="cal-title">直近28日</div>
+    <div id="calGrid" class="cal-grid"></div>
+    <div class="cal-legend">
+      <span><span class="dot" style="background:var(--accent)"></span>達成</span>
+      <span><span class="dot" style="background:var(--warn);opacity:.6"></span>16時間未満</span>
+      <span><span class="dot" style="background:var(--card2)"></span>記録なし</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="hist-title">最近の記録</div>
+    <div id="histList"></div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = "fasting16_data_v1";
+const GOAL_HOURS = 16;
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { current: null, history: [] };
+    return JSON.parse(raw);
+  } catch (e) { return { current: null, history: [] }; }
+}
+function saveData(data) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+let data = loadData();
+
+function dateKey(d) {
+  const dt = new Date(d);
+  return dt.getFullYear() + "-" + String(dt.getMonth()+1).padStart(2,"0") + "-" + String(dt.getDate()).padStart(2,"0");
+}
+function fmtHM(hours) {
+  const h = Math.floor(hours);
+  const m = Math.round((hours - h) * 60);
+  return h + "時間" + (m > 0 ? m + "分" : "");
+}
+function fmtClock(ms) {
+  const totalSec = Math.max(0, Math.floor(ms / 1000));
+  const h = String(Math.floor(totalSec / 3600)).padStart(2, "0");
+  const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, "0");
+  const s = String(totalSec % 60).padStart(2, "0");
+  return h + ":" + m + ":" + s;
+}
+
+const STAGES = [
+  { max: 4,  title: "消化中",            desc: "直前の食事を消化しています" },
+  { max: 8,  title: "血糖値が落ち着く",   desc: "体に蓄えた糖を使い始めます" },
+  { max: 12, title: "糖の貯金が減ってきた", desc: "もうすぐ脂肪を使い始めます" },
+  { max: 16, title: "脂肪燃焼モード",      desc: "体が脂肪をエネルギーに変え始めています" },
+  { max: Infinity, title: "目標達成中！",  desc: "このペースをキープ。食事までこのまま" },
+];
+function getStage(hours) {
+  return STAGES.find(s => hours < s.max) || STAGES[STAGES.length - 1];
+}
+
+const RING_CIRC = 2 * Math.PI * 88;
+const ringProgress = document.getElementById("ringProgress");
+const ringTime = document.getElementById("ringTime");
+const ringSub = document.getElementById("ringSub");
+const ringPercent = document.getElementById("ringPercent");
+const stageTitle = document.getElementById("stageTitle");
+const stageDesc = document.getElementById("stageDesc");
+const mainBtn = document.getElementById("mainBtn");
+const msgEl = document.getElementById("msg");
+
+function render() {
+  if (data.current) {
+    const start = data.current.start;
+    const elapsedMs = Date.now() - start;
+    const elapsedHours = elapsedMs / 3600000;
+    const pct = Math.min(elapsedHours / GOAL_HOURS, 1);
+    const offset = RING_CIRC * (1 - pct);
+    ringProgress.style.strokeDashoffset = offset;
+    ringProgress.classList.toggle("over", elapsedHours >= GOAL_HOURS);
+    ringTime.textContent = fmtClock(elapsedMs);
+    ringSub.textContent = elapsedHours >= GOAL_HOURS
+      ? "目標達成！継続中"
+      : "経過時間 / 目標 " + GOAL_HOURS + "時間";
+    ringPercent.textContent = elapsedHours >= GOAL_HOURS
+      ? "+" + fmtHM(elapsedHours - GOAL_HOURS) + " 超過達成"
+      : Math.floor(pct * 100) + "%";
+
+    const stage = getStage(elapsedHours);
+    stageTitle.textContent = stage.title;
+    stageDesc.textContent = stage.desc;
+
+    mainBtn.textContent = "断食を終了する";
+    mainBtn.classList.add("stop");
+  } else {
+    ringProgress.style.strokeDashoffset = RING_CIRC;
+    ringProgress.classList.remove("over");
+    ringTime.textContent = "00:00:00";
+    ringSub.textContent = "断食していません";
+    ringPercent.textContent = "";
+    stageTitle.textContent = "準備OK";
+    stageDesc.textContent = "食べ終わった時間で「断食スタート」を押してください";
+    mainBtn.textContent = "断食スタート";
+    mainBtn.classList.remove("stop");
+  }
+  renderStats();
+  renderCalendar();
+  renderHistory();
+}
+
+mainBtn.addEventListener("click", () => {
+  if (data.current) {
+    const start = data.current.start;
+    const end = Date.now();
+    const durationHours = (end - start) / 3600000;
+    data.history.unshift({ start, end, durationHours });
+    data.current = null;
+    saveData(data);
+    msgEl.textContent = durationHours >= GOAL_HOURS
+      ? "お疲れさま。" + fmtHM(durationHours) + " 達成しました。"
+      : fmtHM(durationHours) + " でした。次は16時間を目指そう。";
+    if (Notification && Notification.permission === "granted") {
+      new Notification("断食終了", { body: fmtHM(durationHours) + " お疲れさまでした" });
+    }
+  } else {
+    data.current = { start: Date.now() };
+    saveData(data);
+    msgEl.textContent = "スタートしました。16時間後に達成です。";
+    if (window.Notification && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }
+  render();
+});
+
+function renderStats() {
+  const h = data.history;
+  const total = h.length;
+  const achieved = h.filter(x => x.durationHours >= GOAL_HOURS).length;
+  const avg = total ? h.reduce((s, x) => s + x.durationHours, 0) / total : 0;
+  const rate = total ? Math.round((achieved / total) * 100) : 0;
+
+  document.getElementById("statTotal").textContent = total;
+  document.getElementById("statAvg").textContent = total ? avg.toFixed(1) + "h" : "0h";
+  document.getElementById("statRate").textContent = rate + "%";
+
+  // streak: consecutive days with an achieved fast ending that day
+  const achievedDates = new Set(
+    h.filter(x => x.durationHours >= GOAL_HOURS).map(x => dateKey(x.end))
+  );
+  let cursor = new Date(); cursor.setHours(0,0,0,0);
+  if (!achievedDates.has(dateKey(cursor))) cursor.setDate(cursor.getDate() - 1);
+  let streak = 0;
+  while (achievedDates.has(dateKey(cursor))) {
+    streak++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  document.getElementById("streakNum").textContent = streak;
+
+  // best streak ever (scan sorted achieved dates)
+  const sortedDates = Array.from(achievedDates).sort();
+  let best = 0, run = 0, prev = null;
+  for (const dstr of sortedDates) {
+    const d = new Date(dstr);
+    if (prev && (d - prev) / 86400000 === 1) run++; else run = 1;
+    best = Math.max(best, run);
+    prev = d;
+  }
+  document.getElementById("bestStreak").textContent = best;
+}
+
+function renderCalendar() {
+  const grid = document.getElementById("calGrid");
+  grid.innerHTML = "";
+  const h = data.history;
+  const byDate = {};
+  h.forEach(x => {
+    const k = dateKey(x.end);
+    if (!byDate[k] || x.durationHours > byDate[k]) byDate[k] = x.durationHours;
+  });
+  const today = new Date(); today.setHours(0,0,0,0);
+  const days = [];
+  for (let i = 27; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    days.push(d);
+  }
+  days.forEach(d => {
+    const k = dateKey(d);
+    const cell = document.createElement("div");
+    cell.className = "cal-cell";
+    if (byDate[k] !== undefined) {
+      cell.classList.add(byDate[k] >= GOAL_HOURS ? "achieved" : "tried");
+    }
+    if (k === dateKey(today)) cell.classList.add("today");
+    cell.title = k + (byDate[k] !== undefined ? " - " + fmtHM(byDate[k]) : "");
+    grid.appendChild(cell);
+  });
+}
+
+function renderHistory() {
+  const list = document.getElementById("histList");
+  list.innerHTML = "";
+  if (!data.history.length) {
+    list.innerHTML = '<div class="empty">まだ記録がありません</div>';
+    return;
+  }
+  data.history.slice(0, 10).forEach(x => {
+    const item = document.createElement("div");
+    item.className = "hist-item";
+    const d = new Date(x.end);
+    const dateStr = (d.getMonth()+1) + "/" + d.getDate() + " " +
+      String(d.getHours()).padStart(2,"0") + ":" + String(d.getMinutes()).padStart(2,"0");
+    const ok = x.durationHours >= GOAL_HOURS;
+    item.innerHTML = '<span class="hist-date">' + dateStr + '</span>' +
+      '<span class="hist-dur ' + (ok ? "ok" : "ng") + '">' + fmtHM(x.durationHours) + (ok ? " ✓" : "") + '</span>';
+    list.appendChild(item);
+  });
+}
+
+render();
+setInterval(render, 1000);
+</script>
+</body>
+</html>
