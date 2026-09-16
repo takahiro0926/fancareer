@@ -145,6 +145,54 @@
   .info-card { }
   .info-title { font-size: 14px; font-weight: 700; margin-bottom: 8px; }
   .info-body { font-size: 12.5px; color: var(--muted); line-height: 1.7; }
+
+  /* --- meals / calories --- */
+  .section-title { font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+  .cal-input-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .cal-input-row label { font-size: 13px; color: var(--muted); flex: 1; }
+  .cal-input-row input[type=number] {
+    width: 100px; padding: 8px 10px; border-radius: 10px; border: none;
+    background: var(--card2); color: var(--text); font-size: 14px; text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .hint { font-size: 11px; color: var(--muted); margin: 4px 0 14px; line-height: 1.6; }
+
+  .meal-form { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+  .meal-form input[type=text] {
+    flex: 1 1 120px; padding: 10px 12px; border-radius: 10px; border: none;
+    background: var(--card2); color: var(--text); font-size: 14px;
+  }
+  .meal-form input[type=number] {
+    width: 90px; padding: 10px 10px; border-radius: 10px; border: none;
+    background: var(--card2); color: var(--text); font-size: 14px; text-align: right;
+  }
+  .btn-photo, .btn-add {
+    padding: 10px 14px; border-radius: 10px; font-size: 13px; font-weight: 600;
+    background: var(--card2); color: var(--text);
+  }
+  .btn-add { background: var(--accent); color: #0b0f0d; flex: 1 1 100%; padding: 12px; }
+  .photo-preview { width: 100%; max-height: 140px; object-fit: cover; border-radius: 10px; display: none; margin-top: 4px; }
+  .photo-preview.show { display: block; }
+
+  .meal-item { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--card2); font-size: 13px; }
+  .meal-item:last-child { border-bottom: none; }
+  .meal-thumb { width: 36px; height: 36px; border-radius: 8px; object-fit: cover; flex-shrink: 0; background: var(--card2); }
+  .meal-name { flex: 1; }
+  .meal-time { color: var(--muted); font-size: 11px; }
+  .meal-kcal { font-weight: 700; white-space: nowrap; }
+  .meal-del { color: var(--muted); font-size: 16px; padding: 4px 6px; background: none; }
+
+  .totals-row { display: flex; gap: 10px; margin-top: 14px; }
+  .totals-row .stat-box .v.over { color: var(--danger); }
+  .totals-row .stat-box .v.under { color: var(--accent); }
+
+  .verdict {
+    margin-top: 14px; padding: 14px; border-radius: 12px; font-size: 13.5px;
+    line-height: 1.6; font-weight: 600; text-align: center;
+  }
+  .verdict.calm { background: var(--accent-dim); color: var(--accent); }
+  .verdict.angry { background: var(--danger); color: #fff; }
+  .verdict.angry.hard { background: #b02a2a; }
 </style>
 </head>
 <body>
@@ -180,6 +228,37 @@
       一番簡単で確実なのは、iPhoneの「ショートカット」アプリで断食開始と同時に16時間タイマーを始めること。iPhoneに届く通知はApple Watchにも自動で表示されます。<br>
       手順：ショートカットアプリ → 「+」→ アクション「タイマーを開始」→ 16時間0分をセット → ショートカット名を「断食スタート」に。次から断食を始めるときにこれを1タップすればOK。
     </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">🍽️ 今日の食事と消費カロリー</div>
+
+    <div class="cal-input-row">
+      <label for="burnedInput">今日の消費カロリー（Apple ヘルスの数値）</label>
+      <input type="number" id="burnedInput" inputmode="numeric" placeholder="kcal">
+    </div>
+    <div class="hint">
+      Apple ヘルスとの自動同期はブラウザアプリではできません（ネイティブアプリ専用の機能のため）。かわりに、iPhoneの「ショートカット」で①Healthから「アクティブエネルギー」を取得→②このアプリを <code>?burned=数値</code> を付けて開く、を1タップにしておくと自動入力されます。手入力でもOK。
+    </div>
+
+    <div class="meal-form">
+      <input type="text" id="mealNameInput" placeholder="食べたもの（例：焼き魚定食）">
+      <input type="number" id="mealCalInput" inputmode="numeric" placeholder="kcal">
+      <button type="button" id="mealPhotoBtn" class="btn-photo">📷 撮影</button>
+      <input type="file" id="mealPhotoInput" accept="image/*" capture="environment" style="display:none">
+      <img id="photoPreview" class="photo-preview">
+      <button type="button" id="mealAddBtn" class="btn-add">記録に追加</button>
+    </div>
+
+    <div id="mealList"></div>
+
+    <div class="totals-row">
+      <div class="stat-box"><div class="v" id="statEaten">0</div><div class="l">摂取 kcal</div></div>
+      <div class="stat-box"><div class="v" id="statBurned">0</div><div class="l">消費 kcal</div></div>
+      <div class="stat-box"><div class="v" id="statDiff">0</div><div class="l">差分 kcal</div></div>
+    </div>
+
+    <div id="verdict" class="verdict calm"></div>
   </div>
 
   <div class="card">
@@ -223,9 +302,11 @@ const GOAL_HOURS = 16;
 function loadData() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { current: null, history: [] };
-    return JSON.parse(raw);
-  } catch (e) { return { current: null, history: [] }; }
+    if (!raw) return { current: null, history: [], days: {} };
+    const parsed = JSON.parse(raw);
+    if (!parsed.days) parsed.days = {};
+    return parsed;
+  } catch (e) { return { current: null, history: [], days: {} }; }
 }
 function saveData(data) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -247,6 +328,12 @@ function fmtClock(ms) {
   const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, "0");
   const s = String(totalSec % 60).padStart(2, "0");
   return h + ":" + m + ":" + s;
+}
+
+function getTodayKey() { return dateKey(new Date()); }
+function getDayData(key) {
+  if (!data.days[key]) data.days[key] = { burned: null, meals: [] };
+  return data.days[key];
 }
 
 const STAGES = [
@@ -298,6 +385,147 @@ function fireNotification(title, body) {
     new Notification(title, { body });
   }
   if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+}
+
+// --- meals & calories ---
+const burnedInput = document.getElementById("burnedInput");
+const mealNameInput = document.getElementById("mealNameInput");
+const mealCalInput = document.getElementById("mealCalInput");
+const mealPhotoBtn = document.getElementById("mealPhotoBtn");
+const mealPhotoInput = document.getElementById("mealPhotoInput");
+const photoPreview = document.getElementById("photoPreview");
+const mealAddBtn = document.getElementById("mealAddBtn");
+const mealList = document.getElementById("mealList");
+const verdictEl = document.getElementById("verdict");
+
+let pendingPhoto = null;
+
+burnedInput.addEventListener("change", () => {
+  const day = getDayData(getTodayKey());
+  const v = parseInt(burnedInput.value, 10);
+  day.burned = isNaN(v) ? null : v;
+  saveData(data);
+  renderMeals();
+});
+
+mealPhotoBtn.addEventListener("click", () => mealPhotoInput.click());
+mealPhotoInput.addEventListener("change", () => {
+  const file = mealPhotoInput.files[0];
+  if (!file) return;
+  const img = new Image();
+  const reader = new FileReader();
+  reader.onload = e => { img.src = e.target.result; };
+  img.onload = () => {
+    const maxW = 480;
+    const scale = Math.min(1, maxW / img.width);
+    const canvas = document.createElement("canvas");
+    canvas.width = img.width * scale;
+    canvas.height = img.height * scale;
+    canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+    pendingPhoto = canvas.toDataURL("image/jpeg", 0.6);
+    photoPreview.src = pendingPhoto;
+    photoPreview.classList.add("show");
+  };
+  reader.readAsDataURL(file);
+});
+
+mealAddBtn.addEventListener("click", () => {
+  const name = mealNameInput.value.trim();
+  const cal = parseInt(mealCalInput.value, 10);
+  if (!name) { mealNameInput.focus(); return; }
+  const day = getDayData(getTodayKey());
+  day.meals.push({
+    id: Date.now(),
+    time: Date.now(),
+    name,
+    calories: isNaN(cal) ? 0 : cal,
+    photo: pendingPhoto,
+  });
+  saveData(data);
+  mealNameInput.value = "";
+  mealCalInput.value = "";
+  pendingPhoto = null;
+  photoPreview.classList.remove("show");
+  photoPreview.src = "";
+  mealPhotoInput.value = "";
+  renderMeals();
+});
+
+function deleteMeal(id) {
+  const day = getDayData(getTodayKey());
+  day.meals = day.meals.filter(m => m.id !== id);
+  saveData(data);
+  renderMeals();
+}
+
+function renderMeals() {
+  const day = getDayData(getTodayKey());
+  burnedInput.value = day.burned === null ? "" : day.burned;
+
+  mealList.innerHTML = "";
+  if (!day.meals.length) {
+    mealList.innerHTML = '<div class="empty">まだ今日の記録はありません</div>';
+  } else {
+    day.meals.forEach(m => {
+      const item = document.createElement("div");
+      item.className = "meal-item";
+      const t = new Date(m.time);
+      const timeStr = String(t.getHours()).padStart(2,"0") + ":" + String(t.getMinutes()).padStart(2,"0");
+      item.innerHTML =
+        (m.photo ? '<img class="meal-thumb" src="' + m.photo + '">' : '<div class="meal-thumb"></div>') +
+        '<div class="meal-name">' + escapeHtml(m.name) + '<div class="meal-time">' + timeStr + '</div></div>' +
+        '<div class="meal-kcal">' + m.calories + ' kcal</div>' +
+        '<button class="meal-del" data-id="' + m.id + '">×</button>';
+      mealList.appendChild(item);
+    });
+    mealList.querySelectorAll(".meal-del").forEach(btn => {
+      btn.addEventListener("click", () => deleteMeal(Number(btn.dataset.id)));
+    });
+  }
+
+  const eaten = day.meals.reduce((s, m) => s + (m.calories || 0), 0);
+  const burned = day.burned;
+  const diff = burned === null ? null : eaten - burned;
+
+  document.getElementById("statEaten").textContent = eaten;
+  document.getElementById("statBurned").textContent = burned === null ? "未入力" : burned;
+  const diffEl = document.getElementById("statDiff");
+  diffEl.textContent = diff === null ? "-" : (diff > 0 ? "+" : "") + diff;
+  diffEl.classList.remove("over", "under");
+  if (diff !== null) diffEl.classList.add(diff > 0 ? "over" : "under");
+
+  if (burned === null) {
+    verdictEl.className = "verdict calm";
+    verdictEl.textContent = "消費カロリーを入力すると、食べ過ぎていないか判定します。";
+  } else if (diff <= 0) {
+    verdictEl.className = "verdict calm";
+    verdictEl.textContent = "OK。消費カロリーの範囲内です。このペースを維持しよう。";
+  } else {
+    const overRatio = burned > 0 ? diff / burned : 1;
+    verdictEl.className = "verdict angry" + (overRatio > 0.3 ? " hard" : "");
+    if (overRatio > 0.3) {
+      verdictEl.textContent = "完全に食べ過ぎ。消費カロリーを " + diff + "kcal も超えています。今日はもう食べるのをやめましょう。";
+    } else if (overRatio > 0.1) {
+      verdictEl.textContent = "食べ過ぎです。消費より摂取が " + diff + "kcal 多いです。次の食事は控えめに。";
+    } else {
+      verdictEl.textContent = "少しオーバーしています（+" + diff + "kcal）。次で調整しましょう。";
+    }
+  }
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+}
+
+function applyBurnedFromUrl() {
+  const params = new URLSearchParams(location.search);
+  const burned = params.get("burned");
+  if (burned !== null && !isNaN(parseInt(burned, 10))) {
+    const day = getDayData(getTodayKey());
+    day.burned = parseInt(burned, 10);
+    saveData(data);
+    history.replaceState({}, "", location.pathname);
+  }
 }
 
 function render() {
@@ -457,8 +685,10 @@ function renderHistory() {
   });
 }
 
+applyBurnedFromUrl();
 updateNotifyBtn();
 render();
+renderMeals();
 setInterval(render, 1000);
 </script>
 </body>
