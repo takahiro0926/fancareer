@@ -1,8 +1,12 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowLeftIcon, ClockIcon, PeopleIcon, PhoneIcon, PinIcon } from '@/components/icons'
-import { getEventById } from '@/lib/dummy'
+import { DUMMY_EVENTS, getEventById } from '@/lib/dummy'
 import { DiscountToggle } from './DiscountToggle'
+
+export function generateStaticParams() {
+  return DUMMY_EVENTS.map((event) => ({ id: event.id }))
+}
 
 export default function EventDetailPage({ params }: { params: { id: string } }) {
   const event = getEventById(params.id)
