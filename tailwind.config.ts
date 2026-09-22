@@ -5,21 +5,25 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // CSS変数経由でテーマカラーを参照する
-        // 各チームのテーマはsrc/lib/themes.tsで定義
-        primary: 'var(--primary)',
-        'primary-light': 'var(--primary-light)',
-        accent: 'var(--accent)',
-        'accent-text': 'var(--accent-text)',
-        'bg-base': 'var(--bg-base)',
-        'bg-surface': 'var(--bg-surface)',
-        'bg-surface2': 'var(--bg-surface2)',
-        'text-main': 'var(--text-main)',
-        'text-muted': 'var(--text-muted)',
+        cw: {
+          bg: '#FAF6EF',
+          surface: '#FFFFFF',
+          ink: '#24303A',
+          muted: '#6B7280',
+          border: '#E3DCCF',
+          teal: '#2F7A6B',
+          'teal-light': '#4F9686',
+          'teal-soft': '#EFF7F5',
+          orange: '#E8734A',
+          'orange-dark': '#C1552E',
+          'orange-soft': '#FDEEE7',
+          navy: '#1F2A33',
+          'navy-soft': '#9CA9B2',
+        },
       },
       fontFamily: {
-        display: ['Rajdhani', 'sans-serif'],
-        body: ['Noto Sans JP', 'sans-serif'],
+        heading: ['"Zen Maru Gothic"', 'sans-serif'],
+        body: ['"BIZ UDPGothic"', 'sans-serif'],
       },
     },
   },
