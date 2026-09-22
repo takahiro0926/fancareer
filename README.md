@@ -1,17 +1,20 @@
-# ファンキャリ（FanCareer）
+# カルチャーウォーク（CultureWalk）
 
-> サポーターの推し活スキルを、スポンサー企業が本気でスカウトする求人マッチングプラットフォーム
+> シニアの「観たい（文化・エンタメ体験）」を「健康（歩行）」に変える、ヘルスケア×O2Oプラットフォーム
 
 ---
 
 ## プロジェクト概要
 
-スポーツチームのサポーター（求職者）とスポンサー企業を、「チームへの熱量」と「価値観の合致（シンクロ率）」で結びつけるマッチングサービスです。
+コンサート・美術展・歌舞伎などの「お出かけの目的」を提供することで、シニアの外出習慣化と健康寿命延伸を実現するサービスです。事業主体はPANX（ぴあ×朝日新聞グループ）。
+
+詳しい要件定義は [`docs/culturewalk-ai-dev-spec.md`](./docs/culturewalk-ai-dev-spec.md)、各画面の仕様は [`docs/culturewalk-screen-spec.md`](./docs/culturewalk-screen-spec.md) を参照してください。
 
 ### 主な特徴
-- **マルチテナント構成** — チームごとにURLとテーマカラーが変わる（`/oita-trinita`, `/gamba-osaka` など）
-- **シンクロ率マッチング** — ユーザーの価値観スコアと企業が求める人物像を数値化してマッチング
-- **匿名スカウト** — 企業はユーザーの個人情報を見ずにスカウト送信。承諾後にチャットと個人情報が開示
+- **歩数×マイル還元** — 歩いた分だけ「カルチャーマイル」が貯まり、チケット割引に使える
+- **近隣イベント自動リマインド** — ぴあAPI連携を想定し、徒歩・電車15〜30分圏内のイベントを提示
+- **対面サポート導線** — デジタル操作が不安なユーザー向けに、ASA（新聞販売店）店頭・電話でのサポートに接続
+- **B2Bダッシュボード** — 協賛企業向けに、行動連動アンケート・サンプリング効果・広告出稿状況を可視化
 
 ---
 
@@ -20,9 +23,25 @@
 | 役割 | 技術 |
 |---|---|
 | フロントエンド | Next.js 14 (App Router) + TypeScript |
-| スタイリング | Tailwind CSS + CSS変数（テーマシステム） |
-| バックエンド | Supabase（DB + Auth + Realtime） |
-| デプロイ | Vercel |
+| スタイリング | Tailwind CSS |
+| バックエンド（予定） | Supabase（DB + Auth） |
+| デプロイ（予定） | Vercel |
+
+現状はフロントエンドのみで、データは `src/lib/dummy.ts` のダミーデータを使用しています。Supabase接続は未実装です。
+
+---
+
+## 画面一覧
+
+| 画面 | ルート | 状態 |
+|---|---|---|
+| ホーム | `/` | ✅ モック実装済み |
+| イベント詳細 | `/events/[id]` | ✅ モック実装済み（マイル割引の適用/解除が実際に動作） |
+| 対面サポート | `/support` | ✅ モック実装済み |
+| カルチャーマイル | `/miles` | ✅ モック実装済み（クーポン交換が実際に動作） |
+| B2Bダッシュボード | `/company/dashboard` | ✅ モック実装済み |
+
+ワイヤーフレーム（Artifact）: https://claude.ai/artifact/CggEWK8B644CXurukGKXiw
 
 ---
 
@@ -31,179 +50,69 @@
 ```
 src/
 ├── app/
-│   ├── [teamId]/              # チームごとのルート（マルチテナント）
-│   │   ├── page.tsx           # トップページ（LP）
-│   │   ├── onboarding/        # 初回登録フロー（ファン）
-│   │   ├── mypage/            # マイページ（ファン）
-│   │   ├── companies/         # 企業一覧・詳細（ファン向け）
-│   │   ├── chat/              # チャット画面（ファン向け）
-│   │   └── company/           # 企業側の画面群
-│   │       ├── login/         # 企業ログイン・新規申請
-│   │       ├── dashboard/     # 企業ダッシュボード
-│   │       └── chat/          # チャット画面（企業向け）
-│   └── layout.tsx
+│   ├── page.tsx                # ホーム画面
+│   ├── layout.tsx
+│   ├── globals.css
+│   ├── events/[id]/
+│   │   ├── page.tsx             # イベント詳細画面
+│   │   └── DiscountToggle.tsx   # マイル割引ボタン（クライアントコンポーネント）
+│   ├── support/page.tsx         # 対面サポート画面
+│   ├── miles/
+│   │   ├── page.tsx             # カルチャーマイル画面
+│   │   └── CouponRow.tsx        # クーポン交換ボタン（クライアントコンポーネント）
+│   └── company/dashboard/page.tsx  # B2Bダッシュボード
 ├── components/
-│   ├── ui/                    # 汎用UIコンポーネント
-│   ├── layout/                # ナビゲーション・フッター
-│   ├── fan/                   # ファン向け画面コンポーネント
-│   │   ├── Onboarding.tsx     # ← モック実装済み
-│   │   ├── MyPage.tsx         # ← モック実装済み
-│   │   └── SponsorDetail.tsx  # ← モック実装済み
-│   ├── company/               # 企業向け画面コンポーネント
-│   │   ├── CompanyLogin.tsx   # ← モック実装済み
-│   │   └── Dashboard.tsx      # ← モック実装済み
-│   └── chat/
-│       └── ChatWindow.tsx     # ← モック実装済み
+│   ├── icons.tsx                # インラインSVGアイコン集
+│   └── BottomNav.tsx            # 下部ナビゲーション
 ├── lib/
-│   ├── themes.ts              # テーマ設定（チームカラー管理）
-│   ├── supabase.ts            # Supabaseクライアント
-│   └── dummy.ts               # ダミーデータ（API移行前の仮データ）
+│   └── dummy.ts                 # ダミーデータ（API/Supabase移行前の仮データ）
 └── types/
-    └── database.ts            # Supabaseのテーブル型定義
+    └── index.ts                 # 型定義
 ```
 
 ---
 
 ## セットアップ手順
 
-### 1. リポジトリのクローン
-
-```bash
-git clone https://github.com/YOUR_USERNAME/fancareer.git
-cd fancareer
-```
-
-### 2. 依存パッケージのインストール
+### 1. 依存パッケージのインストール
 
 ```bash
 npm install
 ```
 
-### 3. 環境変数の設定
-
-```bash
-cp .env.local.example .env.local
-```
-
-`.env.local` を開いて、SupabaseのURLとANONキーを設定してください。  
-Supabaseの管理画面 → Settings → API から取得できます。
-
-### 4. 開発サーバーの起動
+### 2. 開発サーバーの起動
 
 ```bash
 npm run dev
 ```
 
-`http://localhost:3000` を開くと `/oita-trinita` にリダイレクトされます。
+`http://localhost:3000` を開くとホーム画面が表示されます。
 
----
+### 3. 本番ビルドの確認
 
-## テーマ（着せ替え）の設定方法
-
-`src/lib/themes.ts` にチームのオブジェクトを追記するだけで新チームを追加できます。
-
-```typescript
-'new-team-id': {
-  teamId: 'new-team-id',
-  label: 'チーム名',
-  primary: '#メインカラー',
-  primaryLight: '#明るめのメインカラー',
-  accent: '#CTAボタン色',
-  accentText: '#ボタン上テキスト色',  // 視認性に注意
-  bgBase: '#ページ背景',
-  bgSurface: '#カード背景',
-  bgSurface2: '#フォーム背景',
-  textMain: '#メインテキスト',
-  textMuted: '#サブテキスト',
-  footerLabel: 'フッターのサービス名',
-},
+```bash
+npm run build
+npm run start
 ```
 
 ---
 
-## バックエンド実装ガイド（Supabaseとの連携）
+## 本番化に向けて（未実装のバックエンド作業）
 
-### 認証
+| 優先度 | 作業 | 参考 |
+|---|---|---|
+| 🔴 高 | Supabaseプロジェクト作成・テーブル設計 | `docs/culturewalk-screen-spec.md` の「共通のデータモデル」 |
+| 🔴 高 | 認証実装（LINEログイン or 電話番号＋ASA認証） | `docs/culturewalk-ai-dev-spec.md` 5章 |
+| 🔴 高 | ぴあAPI連携（近隣イベント取得） | `docs/culturewalk-ai-dev-spec.md` 4章 |
+| 🟡 中 | HealthKit / Google Fit 連携（歩数取得） | `docs/culturewalk-ai-dev-spec.md` 3.1章 |
+| 🟡 中 | マイル交換・割引適用のサーバーサイド処理 | `docs/culturewalk-screen-spec.md` 各画面の「連携ポイント」 |
+| 🟢 低 | B2Bレポート出力・k-匿名化集計 | `docs/culturewalk-ai-dev-spec.md` 6章 |
 
-`src/lib/supabase.ts` の関数を各画面から呼び出してください。
-
-```typescript
-// ログイン
-const { data, error } = await signInWithEmail(email, password)
-
-// Googleログイン
-await signInWithGoogle()
-
-// ログアウト
-await signOut()
-```
-
-### データ取得
-
-ダミーデータ（`src/lib/dummy.ts`）をSupabaseのクエリに置き換えます。
-
-```typescript
-// Before（ダミー）
-const companies = DUMMY_COMPANIES
-
-// After（Supabase）
-const { data: companies } = await supabase
-  .from('companies')
-  .select('*')
-  .eq('team_id', teamId)
-  .eq('is_approved', true)
-  .order('created_at', { ascending: false })
-```
-
-### リアルタイムチャット
-
-```typescript
-// チャットのリアルタイム受信
-supabase
-  .channel('messages')
-  .on('postgres_changes', {
-    event: 'INSERT',
-    schema: 'public',
-    table: 'messages',
-    filter: `scout_id=eq.${scoutId}`,
-  }, (payload) => {
-    setMessages(prev => [...prev, payload.new as Message])
-  })
-  .subscribe()
-```
+`src/lib/dummy.ts` の各データを、Supabaseへのクエリに置き換えることで本番化できます。
 
 ---
 
-## Supabaseのテーブル設計
+## 関連ドキュメント
 
-`src/types/database.ts` に全テーブルの型定義があります。  
-Supabaseの管理画面でテーブルを作成する際の参考にしてください。
-
-| テーブル名 | 内容 |
-|---|---|
-| `teams` | チーム情報・テーマカラー |
-| `users` | ファン（求職者）の情報・価値観スコア |
-| `companies` | スポンサー企業情報 |
-| `scouts` | スカウト送信・ステータス管理 |
-| `messages` | チャットメッセージ |
-
----
-
-## デプロイ（Vercel）
-
-1. GitHubリポジトリをVercelに接続
-2. Environment Variables に `.env.local` の内容を設定
-3. デプロイ完了
-
----
-
-## モックのデザインデータについて
-
-このリポジトリのUIコンポーネントは、Claude（Anthropic）との対話を通じて設計されました。  
-設計の意図や変更履歴については、プロジェクトオーナーに確認してください。
-
----
-
-## 連絡先・質問
-
-不明点はプロジェクトオーナーまでご連絡ください。
+- [要件定義書（AI開発マスター指示書）](./docs/culturewalk-ai-dev-spec.md)
+- [画面仕様書](./docs/culturewalk-screen-spec.md)
